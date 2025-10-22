@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Name Splitter by SWC</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header class="site-header">
+    <h1>Name Splitter by SWC</h1>
+    <p>Type names separated by slashes then press Split. The app will output one name per line and copy to clipboard automatically.</p>
+  </header>
+
+  <main class="container">
+    <section class="panel input-panel">
+      <label for="rawInput" class="label">Input</label>
+      <textarea id="rawInput" placeholder="陈美玲/李小华"></textarea>
+
+      <div class="controls">
+        <label class="toggle">
+          <input type="checkbox" id="dedupe" checked />
+          <span>Remove duplicates</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="trimSpaces" checked />
+          <span>Trim spaces</span>
+        </label>
+      </div>
+
+      <div class="buttons">
+        <button id="splitBtn" class="btn primary">Split now</button>
+        <button id="copyBtn" class="btn">Copy output</button>
+        <button id="clearBtn" class="btn subtle">Clear</button>
+      </div>
+      <p class="hint">Example input: 陈美玲/李小华</p>
+    </section>
+
+    <section class="panel output-panel">
+      <div class="header-row">
+        <h2>Output</h2>
+        <span id="countBadge" class="badge">0</span>
+      </div>
+      <textarea id="output" readonly></textarea>
+      <div id="status" class="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Made with HTML CSS and JavaScript. No libraries required.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
