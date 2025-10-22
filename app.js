@@ -25,6 +25,11 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
     s = s.replace(/#\d+\s*$/g, "").trim();
     if (!s) continue;
 
+        s = s
+      .replace(/^(故)\s*/u, "$1 ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
     if (doDedupe) {
       if (seen.has(s)) continue;
       seen.add(s);
