@@ -21,6 +21,10 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   for (let part of parts) {
     let s = doTrim ? part.trim() : part;
     if (!s) continue;
+
+    s = s.replace(/#\d+\s*$/g, "").trim();
+    if (!s) continue;
+
     if (doDedupe) {
       if (seen.has(s)) continue;
       seen.add(s);
@@ -110,5 +114,5 @@ input.addEventListener("keydown", (e) => {
 
 // Preload example
 window.addEventListener("DOMContentLoaded", () => {
-  input.value = "陈怀广/李小华";
+  input.value = "";
 });
