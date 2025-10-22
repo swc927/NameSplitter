@@ -97,6 +97,17 @@ async function runSplit(autoCopy = true) {
   }
 }
 
+input.addEventListener("paste", () => {
+  setTimeout(() => runSplit(true), 0);
+});
+
+let autoSplitTimer = null; 
+input.addEventListener("input", () => { 
+  clearTimeout(autoSplitTimer);        
+  autoSplitTimer = setTimeout(() => runSplit(true), 200); /
+});
+
+
 splitBtn.addEventListener("click", () => runSplit(true));
 copyBtn.addEventListener("click", async () => {
   const ok = await copyToClipboard(output.value);
@@ -109,7 +120,6 @@ clearBtn.addEventListener("click", () => {
   setStatus("Cleared");
 });
 
-// Quality of life: split on Enter with modifier
 input.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
@@ -117,7 +127,6 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// Preload example
 window.addEventListener("DOMContentLoaded", () => {
   input.value = "";
 });
