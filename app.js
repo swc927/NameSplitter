@@ -34,6 +34,13 @@ function preprocessRaw(raw) {
   return s;
 }
 
+function smartCapitalize(name) {
+  // Only change English letters, ignore Chinese or symbols
+  return name.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, (word) => {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
   // Split on common separators: slash, comma, Chinese comma, line break, vertical bar
@@ -55,6 +62,8 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       .replace(/^(故)\s*/u, "$1 ")
       .replace(/\s{2,}/g, " ")
       .trim();
+
+     s = smartCapitalize(s);
 
     if (doDedupe) {
       if (seen.has(s)) continue;
