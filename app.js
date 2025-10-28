@@ -12,7 +12,6 @@ const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
 
 /* NEW robust ID patterns */
-// Common SG style first, with sensible fallback
 const STRICT_ID = /\b[STFGM]\d{7}[A-Z]\b/;                  // S1234567A etc.
 const LAX_ID = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/;               // broader fallback
 const ID_REGEX = new RegExp(`${STRICT_ID.source}|${LAX_ID.source}`, "g");
@@ -21,8 +20,8 @@ const WHOLE_ID_REGEX = new RegExp(`^(?:${STRICT_ID.source}|${LAX_ID.source})$`);
 /* NEW normalise spaces including full width */
 function normaliseSpaces(s) {
   return s
-    .replace(/\u3000/g, " ")        // full width space to space
-    .replace(/\s{2,}/g, " ")        // collapse multiples
+    .replace(/\u3000/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
@@ -30,8 +29,25 @@ function normaliseSpaces(s) {
 function explodeInlineIds(s) {
   return s
     .split(new RegExp("(" + ID_REGEX.source + ")", "g"))
-    .map(x => normaliseSpaces(x))
+    .map((x) => normaliseSpaces(x))
     .filter(Boolean);
+}
+
+/* NEW: normalise company terms  MOVED OUT OF parseNames */
+function normaliseCompanyTerms(s) {
+  const rules = [
+    [/(\b)pte\.?\s*ltd\b/i, "$1Pte Ltd"],
+    [/(\b)ltd\b/i, "$1Ltd"],
+    [/(\b)llp\b/i, "$1LLP"],
+    [/(\b)plc\b/i, "$1PLC"],
+    [/(\b)llc\b/i, "$1LLC"],
+    [/(\b)inc\.?\b/i, "$1Inc"],
+    [/(\b)co\.?\b/i, "$1Co"],
+    [/(\b)limited\b/i, "$1Limited"],
+    [/(\b)bhd\b/i, "$1Bhd"],
+  ];
+  for (const [re, rep] of rules) s = s.replace(re, rep);
+  return s;
 }
 
 /* Strip common form labels line only */
@@ -46,52 +62,41 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
-    // Insert a newline before a standalone 故 prefix that starts a name
-  // example: "… Eng 故Teoh …" becomes "… Eng \n故Teoh …"
+  // Insert a newline before a standalone 故 or 已故 prefix that starts a name
   s = s.replace(/(^|\s)(故)(?=[A-Za-z\u4E00-\u9FFF])/gu, "$1\n$2");
-
-  // If two Chinese names are separated by spaces, split them onto new lines
-  // example: "李成兴 李茹茵" becomes "李成兴\n李茹茵"
-  s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
-
   s = s.replace(/(^|\s)(已故)(?=[A-Za-z\u4E00-\u9FFF])/gu, "$1\n$2");
 
+  // If two Chinese names are separated by spaces, split them onto new lines
+  s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
 
+  s = s.trim();
   return s;
 }
 
 /* Capitalise names, uppercase IDs */
 function smartCapitalize(name) {
   const trimmed = name.trim();
-
-  // Uppercase if the entire token is an ID
   if (WHOLE_ID_REGEX.test(trimmed)) {
     return trimmed.toUpperCase();
   }
-
-  // Prepass: inside parentheses, force short alphabetic tokens to uppercase, e.g. (sm) → (SM)
+  // Prepass: inside parentheses, force short alphabetic tokens to uppercase
   let s = trimmed.replace(/\(([a-zA-Z]{2,5})\)/g, (_, w) => `(${w.toUpperCase()})`);
-
   // Title case English words, but preserve short all caps tokens
-  s = s.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, word => {
-    if (/^[A-Z]{2,5}$/.test(word)) return word;           // keep acronyms like SM, PWC
+  s = s.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, (word) => {
+    if (/^[A-Z]{2,5}$/.test(word)) return word;
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
-
   return s;
 }
-
 
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
-  // Split on slash, comma, Chinese comma, ideographic comma, line break, vertical bar, or before "Name#number"
+  // Split on common separators, or before Name markers
   let parts = raw
     .replace(/\r\n/g, "\n")
-    /* NEW include ideographic comma 、 */
-    .split(/(?:[\/|,，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—])/g);
+    .split(/(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—])/g);
 
-  /* NEW smarter dedupe key that is case insensitive for ASCII */
   const seen = new Set();
   const names = [];
 
@@ -100,23 +105,24 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       let s = doTrim ? normaliseSpaces(chunk) : chunk;
       if (!s) continue;
 
-      // Remove leading Name#123 markers
+      // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
       s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—]?\s*/i, "").trim();
       if (!s) continue;
 
-      /* CHANGED: only add a space after 故 when followed by Latin
-         so 已故王小明 remains tight, while 故 John gets a space */
+      // Only add a space after 故 or 已故 when followed by Latin
       s = s
         .replace(/^(故|已故)(?=[A-Za-z])/u, "$1 ")
         .replace(/\s{2,}/g, " ")
         .trim();
 
-
-      // Auto capitalise names and uppercase IDs
+      // Capitalise names and uppercase IDs
       s = smartCapitalize(s);
 
-      // Case insensitive dedupe on ASCII without touching Chinese
-      const dedupeKey = s.replace(/[A-Z]/g, c => c.toLowerCase());
+      // Normalise company terms  NEW USE
+      s = normaliseCompanyTerms(s);
+
+      // Case insensitive dedupe for ASCII without touching Chinese
+      const dedupeKey = s.replace(/[A-Z]/g, (c) => c.toLowerCase());
       if (doDedupe) {
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
@@ -168,7 +174,6 @@ function setStatus(msg) {
   }
 }
 
-/* runSplit stays the same except for preprocessRaw */
 async function runSplit(autoCopy = true) {
   const raw = preprocessRaw(input.value);
   const names = parseNames(raw, {
