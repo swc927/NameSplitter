@@ -62,23 +62,16 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
-  // Insert a newline before a "故" that clearly starts a new name
-  // Conditions: preceded by a Chinese name or an English name + at least one more "故" group follows
-  s = s.replace(
-    /(?<=\p{L}|\p{Script=Han})\s+(?=故[A-Za-z\u4E00-\u9FFF])/gu,
-    "\n"
-  );
-
-// Make sure there is a space after 故 if followed by Latin, purely cosmetic
+// Cosmetic space after 故 before Latin
 s = s.replace(/故(?=[A-Za-z])/g, "故 ");
 
-// Break before every subsequent 故 or 已故 token
-// Turn " … 故Xxx" into "\n故Xxx" and " … 已故Xxx" into "\n已故Xxx"
+// Hard break before every new 故 or 已故
 s = s.replace(/ +故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
 s = s.replace(/ +已故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n已故");
 
-// Also split pure Chinese names separated by spaces
+// Split Chinese names separated by spaces
 s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
+
 
 
   s = s.trim();
