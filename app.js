@@ -87,7 +87,7 @@ function smartCapitalize(name) {
   // Prepass: inside parentheses, force short alphabetic tokens to uppercase
   let s = trimmed.replace(/\(([a-zA-Z]{2,5})\)/g, (_, w) => `(${w.toUpperCase()})`);
   // Title case English words, but preserve short all caps tokens
-  s = s.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, (word) => {
+s = s.replace(/\b[a-zA-Z][a-zA-Z'\u2019]*\b/g, (word) => {
     if (/^[A-Z]{2,5}$/.test(word)) return word;
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
@@ -100,7 +100,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   // Split on common separators, or before Name markers
   let parts = raw
     .replace(/\r\n/g, "\n")
-    .split(/(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—])/g);
+.split(/(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g);
 
   const seen = new Set();
   const names = [];
@@ -111,7 +111,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       if (!s) continue;
 
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
-      s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—]?\s*/i, "").trim();
+s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
       if (!s) continue;
 
       // Only add a space after 故 or 已故 when followed by Latin
