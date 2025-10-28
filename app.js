@@ -52,14 +52,24 @@ function preprocessRaw(raw) {
 /* Capitalise names, uppercase IDs */
 function smartCapitalize(name) {
   const trimmed = name.trim();
+
+  // Uppercase if the entire token is an ID
   if (WHOLE_ID_REGEX.test(trimmed)) {
     return trimmed.toUpperCase();
   }
-  // Title case English words only, keep Chinese intact
-  return trimmed.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, word =>
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  );
+
+  // Prepass: inside parentheses, force short alphabetic tokens to uppercase, e.g. (sm) → (SM)
+  let s = trimmed.replace(/\(([a-zA-Z]{2,5})\)/g, (_, w) => `(${w.toUpperCase()})`);
+
+  // Title case English words, but preserve short all caps tokens
+  s = s.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, word => {
+    if (/^[A-Z]{2,5}$/.test(word)) return word;           // keep acronyms like SM, PWC
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+
+  return s;
 }
+
 
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
