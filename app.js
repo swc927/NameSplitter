@@ -46,6 +46,14 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
+    // Insert a newline before a standalone 故 prefix that starts a name
+  // example: "… Eng 故Teoh …" becomes "… Eng \n故Teoh …"
+  s = s.replace(/(^|\s)(故)(?=[A-Za-z\u4E00-\u9FFF])/gu, "$1\n$2");
+
+  // If two Chinese names are separated by spaces, split them onto new lines
+  // example: "李成兴 李茹茵" becomes "李成兴\n李茹茵"
+  s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
+
   return s;
 }
 
