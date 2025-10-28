@@ -54,6 +54,9 @@ function preprocessRaw(raw) {
   // example: "李成兴 李茹茵" becomes "李成兴\n李茹茵"
   s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
 
+  s = s.replace(/(^|\s)(已故)(?=[A-Za-z\u4E00-\u9FFF])/gu, "$1\n$2");
+
+
   return s;
 }
 
@@ -104,9 +107,10 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       /* CHANGED: only add a space after 故 when followed by Latin
          so 已故王小明 remains tight, while 故 John gets a space */
       s = s
-        .replace(/^(故)(?=[A-Za-z])/u, "$1 ")
+        .replace(/^(故|已故)(?=[A-Za-z])/u, "$1 ")
         .replace(/\s{2,}/g, " ")
         .trim();
+
 
       // Auto capitalise names and uppercase IDs
       s = smartCapitalize(s);
