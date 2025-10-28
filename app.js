@@ -35,7 +35,12 @@ function preprocessRaw(raw) {
 }
 
 function smartCapitalize(name) {
-  // Only change English letters, ignore Chinese or symbols
+  // 1️⃣ If the string looks like an NRIC/UEN (letters + digits + letter)
+  if (/^[A-Za-z]\d{6,8}[A-Za-z]$/.test(name.trim())) {
+    return name.toUpperCase();
+  }
+
+  // 2️⃣ Otherwise, only title-case English words
   return name.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, (word) => {
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
