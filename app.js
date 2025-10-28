@@ -205,7 +205,7 @@ function postFormatDeceased(lines) {
         isDeceased(last) &&
         latinAfterPrefix(last) &&
         latinAfterPrefix(s) &&
-        !/\s故\s/.test(last) // only one pair per line
+        ((last.match(/\b故\s*[A-Za-z]/g) || []).length < 2)
       ) {
         out[out.length - 1] = last + " " + s;
       } else {
