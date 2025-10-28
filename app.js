@@ -11,9 +11,32 @@ const statusEl = $("#status");
 const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
 
+/* NEW: strip common form labels like
+   NRIC or UEN (for Tax Exemption purposes):
+   and similar variants sitting on their own line */
+function preprocessRaw(raw) {
+  if (typeof raw !== "string") return "";
+  let s = raw.replace(/\r\n/g, "\n");
+
+  // Remove the exact middle label line, case insensitive, start of line only
+  s = s.replace(
+    /^\s*(NRIC|FIN)\s*or\s*UEN(?:\s*\(for\s*Tax\s*Exemption\s*purposes\))?\s*:\s*$/gim,
+    ""
+  );
+
+  // Optional hardening remove any stray lines that are only a label followed by colon
+  // and contain NRIC or UEN words with no value on the same line
+  s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
+
+  // Neaten multiple blank lines
+  s = s.replace(/\n{3,}/g, "\n\n").trim();
+
+  return s;
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
-  // Split on common separators: slash, comma, line break, vertical bar
+  // Split on common separators: slash, comma, Chinese comma, line break, vertical bar
   let parts = raw.replace(/\r\n/g, "\n").split(/[\/|,，\n]+/);
 
   let seen = new Set();
@@ -79,8 +102,9 @@ function setStatus(msg) {
   }
 }
 
+/* CHANGED: runSplit now pre cleans the input */
 async function runSplit(autoCopy = true) {
-  const raw = input.value;
+  const raw = preprocessRaw(input.value); // was input.value
   const names = parseNames(raw, {
     doDedupe: dedupe.checked,
     doTrim: trimSpaces.checked,
@@ -108,7 +132,7 @@ clearBtn.addEventListener("click", () => {
   setStatus("Cleared");
 });
 
-// Quality of life: split on Enter with modifier
+// Quality of life split on Enter with modifier
 input.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
@@ -116,7 +140,7 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// NEW: auto split right after a paste
+// Auto split right after a paste
 input.addEventListener("paste", () => {
   setTimeout(() => runSplit(true), 0);
 });
