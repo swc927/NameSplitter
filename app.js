@@ -14,7 +14,7 @@ const trimSpaces = $("#trimSpaces");
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
   // Split on common separators: slash, comma, line break, vertical bar
-  let parts = raw.replace(/\r\n/g, "\n").split(/[\/|,\n]+/);
+  let parts = raw.replace(/\r\n/g, "\n").split(/[\/|,，\n]+/);
 
   let seen = new Set();
   let names = [];
