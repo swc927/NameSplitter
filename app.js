@@ -182,12 +182,53 @@ function setStatus(msg) {
   }
 }
 
+function postFormatDeceased(lines) {
+  const out = [];
+  const isDeceased = (s) => /^故/.test(s);
+  const latinAfterPrefix = (s) => /^故\s*[A-Za-z]/.test(s);
+
+  for (const s of lines) {
+    if (isDeceased(s)) {
+      const last = out[out.length - 1];
+
+      // Rule: keep the very first deceased as its own line
+      if (!last) {
+        out.push(s);
+        continue;
+      }
+
+      // Pair only if the previous output line is a deceased line,
+      // that previous line starts with Latin after 故,
+      // this line also starts with Latin after 故,
+      // and we have not already paired on that line.
+      if (
+        isDeceased(last) &&
+        latinAfterPrefix(last) &&
+        latinAfterPrefix(s) &&
+        !/\s故\s/.test(last) // only one pair per line
+      ) {
+        out[out.length - 1] = last + " " + s;
+      } else {
+        out.push(s);
+      }
+    } else {
+      out.push(s);
+    }
+  }
+  return out;
+}
+
+
 async function runSplit(autoCopy = true) {
   const raw = preprocessRaw(input.value);
-  const names = parseNames(raw, {
+  let names = parseNames(raw, {
     doDedupe: dedupe.checked,
     doTrim: trimSpaces.checked,
   });
+
+  // NEW: pair consecutive deceased names when both are Latin-starting
+  names = postFormatDeceased(names);
+
   const text = toMultiline(names);
   output.value = text;
   updateCount(names.length);
@@ -198,6 +239,7 @@ async function runSplit(autoCopy = true) {
     setStatus("Done");
   }
 }
+
 
 splitBtn.addEventListener("click", () => runSplit(true));
 copyBtn.addEventListener("click", async () => {
