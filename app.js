@@ -66,8 +66,8 @@ function preprocessRaw(raw) {
 s = s.replace(/故(?=[A-Za-z])/g, "故 ");
 
 // Hard break before every new 故 or 已故
-s = s.replace(/ +故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
-s = s.replace(/ +已故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n已故");
+s = s.replace(/\s+故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
+s = s.replace(/\s+已故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n已故");
 
 // Split Chinese names separated by spaces
 s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
