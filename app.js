@@ -69,13 +69,17 @@ function preprocessRaw(raw) {
     "\n"
   );
 
-  // Ensure spacing after 故 for Latin names but not Chinese
-  s = s.replace(/^(故)(?=[A-Za-z])/gm, "$1 ");
-  
-  s = s.replace(/(^|\s)(已故)(?=[A-Za-z\u4E00-\u9FFF])/gu, "$1\n$2");
+// Make sure there is a space after 故 if followed by Latin, purely cosmetic
+s = s.replace(/故(?=[A-Za-z])/g, "故 ");
 
-  // If two Chinese names are separated by spaces, split them onto new lines
-  s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
+// Break before every subsequent 故 or 已故 token
+// Turn " … 故Xxx" into "\n故Xxx" and " … 已故Xxx" into "\n已故Xxx"
+s = s.replace(/ +故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
+s = s.replace(/ +已故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n已故");
+
+// Also split pure Chinese names separated by spaces
+s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
+
 
   s = s.trim();
   return s;
@@ -221,15 +225,13 @@ function postFormatDeceased(lines) {
 
 async function runSplit(autoCopy = true) {
   const raw = preprocessRaw(input.value);
-  let names = parseNames(raw, {
-    doDedupe: dedupe.checked,
-    doTrim: trimSpaces.checked,
-  });
+let names = parseNames(raw, { doDedupe: dedupe.checked, doTrim: trimSpaces.checked });
 
-  // NEW: pair consecutive deceased names when both are Latin-starting
-  names = postFormatDeceased(names);
+// Disable pairing so each 故 or 已故 stands on its own line
+// names = postFormatDeceased(names);
 
-  const text = toMultiline(names);
+const text = toMultiline(names);
+  
   output.value = text;
   updateCount(names.length);
   if (autoCopy && text.length) {
