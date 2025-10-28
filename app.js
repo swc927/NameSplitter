@@ -37,7 +37,10 @@ function preprocessRaw(raw) {
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
   // Split on common separators: slash, comma, Chinese comma, line break, vertical bar
-  let parts = raw.replace(/\r\n/g, "\n").split(/[\/|,，\n]+/);
+  let parts = raw
+  .replace(/\r\n/g, "\n")
+  // Split on slash, comma, Chinese comma, line break, vertical bar, or before "Name#number"
+  .split(/(?:[\/|,，\n]+)|(?=Name#\d+)/g);
 
   let seen = new Set();
   let names = [];
@@ -45,7 +48,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
     let s = doTrim ? part.trim() : part;
     if (!s) continue;
 
-    s = s.replace(/#\d+\s*$/g, "").trim();
+    s = s.replace(/^Name#\d+\s*/g, "").trim();
     if (!s) continue;
 
     s = s
