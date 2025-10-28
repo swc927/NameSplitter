@@ -11,6 +11,18 @@ const statusEl = $("#status");
 const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
 
+// Detect NRIC or UEN like S1234567A or T12AB3456B
+const ID_REGEX = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/g;
+
+// Split any chunk into [name pieces and ID pieces], preserving order
+function explodeInlineIds(s) {
+  return s
+    .split(new RegExp("(" + ID_REGEX.source + ")", "g"))
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+
 /* NEW: strip common form labels like
    NRIC or UEN (for Tax Exemption purposes):
    and similar variants sitting on their own line */
@@ -55,20 +67,26 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   .split(/(?:[\/|,，\n]+)|(?=Name#\d+)/g);
 
   let seen = new Set();
-  let names = [];
-  for (let part of parts) {
-    let s = doTrim ? part.trim() : part;
+let names = [];
+
+for (let part of parts) {
+  // NEW split inline IDs away from names, preserving order
+  for (let chunk of explodeInlineIds(part)) {
+    let s = doTrim ? chunk.trim() : chunk;
     if (!s) continue;
 
+    // Remove leading Name#123 markers
     s = s.replace(/^Name#\d+\s*/g, "").trim();
     if (!s) continue;
 
+    // Tidy special prefixes and whitespace
     s = s
       .replace(/^(故)\s*/u, "$1 ")
       .replace(/\s{2,}/g, " ")
       .trim();
 
-     s = smartCapitalize(s);
+    // Auto-capitalise names and uppercase IDs
+    s = smartCapitalize(s);
 
     if (doDedupe) {
       if (seen.has(s)) continue;
@@ -76,9 +94,10 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
     }
     names.push(s);
   }
-  return names;
 }
-
+     return names;
+}
+   
 function toMultiline(arr) {
   return arr.join("\n");
 }
