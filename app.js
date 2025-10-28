@@ -68,7 +68,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   let parts = raw
     .replace(/\r\n/g, "\n")
     /* NEW include ideographic comma 、 */
-    .split(/(?:[\/|,，、\n]+)|(?=Name#\d+)/g);
+    .split(/(?:[\/|,，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—])/g);
 
   /* NEW smarter dedupe key that is case insensitive for ASCII */
   const seen = new Set();
@@ -80,7 +80,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       if (!s) continue;
 
       // Remove leading Name#123 markers
-      s = s.replace(/^Name#\d+\s*/g, "").trim();
+      s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—]?\s*/i, "").trim();
       if (!s) continue;
 
       /* CHANGED: only add a space after 故 when followed by Latin
