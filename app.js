@@ -11,93 +11,101 @@ const statusEl = $("#status");
 const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
 
-// Detect NRIC or UEN like S1234567A or T12AB3456B
-const ID_REGEX = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/g;
+/* NEW robust ID patterns */
+// Common SG style first, with sensible fallback
+const STRICT_ID = /\b[STFGM]\d{7}[A-Z]\b/;                  // S1234567A etc.
+const LAX_ID = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/;               // broader fallback
+const ID_REGEX = new RegExp(`${STRICT_ID.source}|${LAX_ID.source}`, "g");
+const WHOLE_ID_REGEX = new RegExp(`^(?:${STRICT_ID.source}|${LAX_ID.source})$`);
+
+/* NEW normalise spaces including full width */
+function normaliseSpaces(s) {
+  return s
+    .replace(/\u3000/g, " ")        // full width space to space
+    .replace(/\s{2,}/g, " ")        // collapse multiples
+    .trim();
+}
 
 // Split any chunk into [name pieces and ID pieces], preserving order
 function explodeInlineIds(s) {
   return s
     .split(new RegExp("(" + ID_REGEX.source + ")", "g"))
-    .map(x => x.trim())
+    .map(x => normaliseSpaces(x))
     .filter(Boolean);
 }
 
-
-/* NEW: strip common form labels like
-   NRIC or UEN (for Tax Exemption purposes):
-   and similar variants sitting on their own line */
+/* Strip common form labels line only */
 function preprocessRaw(raw) {
   if (typeof raw !== "string") return "";
   let s = raw.replace(/\r\n/g, "\n");
 
-  // Remove the exact middle label line, case insensitive, start of line only
   s = s.replace(
     /^\s*(NRIC|FIN)\s*or\s*UEN(?:\s*\(for\s*Tax\s*Exemption\s*purposes\))?\s*:\s*$/gim,
     ""
   );
-
-  // Optional hardening remove any stray lines that are only a label followed by colon
-  // and contain NRIC or UEN words with no value on the same line
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
-
-  // Neaten multiple blank lines
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
   return s;
 }
 
+/* Capitalise names, uppercase IDs */
 function smartCapitalize(name) {
-  // 1️⃣ If the string looks like an NRIC/UEN (letters + digits + letter)
-  if (/^[A-Za-z]\d{6,8}[A-Za-z]$/.test(name.trim())) {
-    return name.toUpperCase();
+  const trimmed = name.trim();
+  if (WHOLE_ID_REGEX.test(trimmed)) {
+    return trimmed.toUpperCase();
   }
-
-  // 2️⃣ Otherwise, only title-case English words
-  return name.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, (word) => {
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  });
+  // Title case English words only, keep Chinese intact
+  return trimmed.replace(/\b[a-zA-Z][a-zA-Z']*\b/g, word =>
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  );
 }
 
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
-  // Split on common separators: slash, comma, Chinese comma, line break, vertical bar
+
+  // Split on slash, comma, Chinese comma, ideographic comma, line break, vertical bar, or before "Name#number"
   let parts = raw
-  .replace(/\r\n/g, "\n")
-  // Split on slash, comma, Chinese comma, line break, vertical bar, or before "Name#number"
-  .split(/(?:[\/|,，\n]+)|(?=Name#\d+)/g);
+    .replace(/\r\n/g, "\n")
+    /* NEW include ideographic comma 、 */
+    .split(/(?:[\/|,，、\n]+)|(?=Name#\d+)/g);
 
-  let seen = new Set();
-let names = [];
+  /* NEW smarter dedupe key that is case insensitive for ASCII */
+  const seen = new Set();
+  const names = [];
 
-for (let part of parts) {
-  // NEW split inline IDs away from names, preserving order
-  for (let chunk of explodeInlineIds(part)) {
-    let s = doTrim ? chunk.trim() : chunk;
-    if (!s) continue;
+  for (let part of parts) {
+    for (let chunk of explodeInlineIds(part)) {
+      let s = doTrim ? normaliseSpaces(chunk) : chunk;
+      if (!s) continue;
 
-    // Remove leading Name#123 markers
-    s = s.replace(/^Name#\d+\s*/g, "").trim();
-    if (!s) continue;
+      // Remove leading Name#123 markers
+      s = s.replace(/^Name#\d+\s*/g, "").trim();
+      if (!s) continue;
 
-    // Tidy special prefixes and whitespace
-    s = s
-      .replace(/^(故)\s*/u, "$1 ")
-      .replace(/\s{2,}/g, " ")
-      .trim();
+      /* CHANGED: only add a space after 故 when followed by Latin
+         so 已故王小明 remains tight, while 故 John gets a space */
+      s = s
+        .replace(/^(故)(?=[A-Za-z])/u, "$1 ")
+        .replace(/\s{2,}/g, " ")
+        .trim();
 
-    // Auto-capitalise names and uppercase IDs
-    s = smartCapitalize(s);
+      // Auto capitalise names and uppercase IDs
+      s = smartCapitalize(s);
 
-    if (doDedupe) {
-      if (seen.has(s)) continue;
-      seen.add(s);
+      // Case insensitive dedupe on ASCII without touching Chinese
+      const dedupeKey = s.replace(/[A-Z]/g, c => c.toLowerCase());
+      if (doDedupe) {
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+      }
+
+      names.push(s);
     }
-    names.push(s);
   }
+  return names;
 }
-     return names;
-}
-   
+
 function toMultiline(arr) {
   return arr.join("\n");
 }
@@ -138,9 +146,9 @@ function setStatus(msg) {
   }
 }
 
-/* CHANGED: runSplit now pre cleans the input */
+/* runSplit stays the same except for preprocessRaw */
 async function runSplit(autoCopy = true) {
-  const raw = preprocessRaw(input.value); // was input.value
+  const raw = preprocessRaw(input.value);
   const names = parseNames(raw, {
     doDedupe: dedupe.checked,
     doTrim: trimSpaces.checked,
@@ -168,7 +176,6 @@ clearBtn.addEventListener("click", () => {
   setStatus("Cleared");
 });
 
-// Quality of life split on Enter with modifier
 input.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
@@ -176,12 +183,10 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// Auto split right after a paste
 input.addEventListener("paste", () => {
   setTimeout(() => runSplit(true), 0);
 });
 
-// Preload example
 window.addEventListener("DOMContentLoaded", () => {
   input.value = "";
 });
