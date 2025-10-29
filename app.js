@@ -62,6 +62,9 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
+  // Normalise variants like 故: or 故： to a standard form "故 "
+  s = s.replace(/(故|已故)[:：]\s*/g, "$1 ");
+
   // Break before common list markers like 1) or 2.
   // Supports full-width right parenthesis too
   s = s.replace(/\s*\d+[.)）]\s+(?=[A-Za-z\u4E00-\u9FFF])/gu, "\n");
