@@ -62,6 +62,10 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
+  // Break before common list markers like 1) or 2.
+  // Supports full-width right parenthesis too
+  s = s.replace(/\s*\d+[.)）]\s+(?=[A-Za-z\u4E00-\u9FFF])/gu, "\n");
+
   // Hard break before every new 故 or 已故, tolerate spaces after the marker, normalise to one space
   s = s.replace(/\s+故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n故 ");
   s = s.replace(/\s+已故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n已故 ");
@@ -97,6 +101,25 @@ function smartCapitalize(name) {
   return s;
 }
 
+/* Handle deceased names and standard spacing */
+function manageNames(s) {
+  if (typeof s !== "string") return "";
+
+  // 1. Add space after 故 if missing (before Latin or Chinese)
+  s = s.replace(/^(故)(?=[A-Za-z\u4E00-\u9FFF])/u, "$1 ");
+
+  // 2. Normalise multiple spaces
+  s = s.replace(/\s{2,}/g, " ").trim();
+
+  // 3. Capitalise if not Chinese-only
+  const hasLatin = /[A-Za-z]/.test(s);
+  if (hasLatin) {
+    s = smartCapitalize(s);
+  }
+
+  return s;
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
@@ -126,7 +149,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
         .trim();
 
       // Capitalise names and uppercase IDs
-      s = smartCapitalize(s);
+      s = manageNames(s);
 
       // Normalise company terms  NEW USE
       s = normaliseCompanyTerms(s);
