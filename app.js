@@ -62,6 +62,15 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
+  // Decode common HTML non-breaking space variants before splitting
+  // Handles &nbsp; &Nbsp; &#160; &#xA0; and friends (semicolon optional)
+  s = s.replace(/&(nbsp|ensp|emsp|thinsp);?/gi, " ");
+  s = s.replace(/&#(?:160|xA0);?/gi, " ");
+
+  // Remove zero-widths then normalise more slash variants
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  s = s.replace(/[\uFF0F\u2215\u2044]/g, "/");
+
   // Normalise full width slash to ASCII slash
   s = s.replace(/／/g, "/");
 
@@ -133,6 +142,20 @@ function removeFullWidthNameLabels(s) {
   return s.replace(/^\s*Name\s*[＃#]?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
 }
 
+/* Remove HTML entities and handle numbered list prefixes like #7 */
+function cleanHtmlEntities(s) {
+  if (typeof s !== "string") return "";
+
+  // 1. Convert common HTML non-breaking spaces (&nbsp;) to real spaces
+  s = s.replace(/&nbsp;|&#160;|&ensp;|&emsp;/gi, " ");
+
+  // 2. Remove leading numbered markers like "#7", "#12", or "No.7"
+  s = s.replace(/^\s*(#|No\.?)\s*\d+\s*/i, "");
+
+  // 3. Collapse double spaces
+  return s.replace(/\s{2,}/g, " ").trim();
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
@@ -149,6 +172,10 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   for (let part of parts) {
     for (let chunk of explodeInlineIds(part)) {
       let s = doTrim ? normaliseSpaces(chunk) : chunk;
+      if (!s) continue;
+
+      // Clean HTML entities and numbered list markers
+      s = cleanHtmlEntities(s);
       if (!s) continue;
 
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
