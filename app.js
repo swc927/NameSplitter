@@ -62,6 +62,9 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
+  // Normalise full width slash to ASCII slash
+  s = s.replace(/／/g, "/");
+
   // Normalise variants like 故: or 故： to a standard form "故 "
   s = s.replace(/(故|已故)[:：]\s*/g, "$1 ");
 
@@ -133,11 +136,11 @@ function removeFullWidthNameLabels(s) {
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
-  // Split on common separators, or before Name markers
+  // Split on common separators, now including full width slash
   let parts = raw
     .replace(/\r\n/g, "\n")
     .split(
-      /(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g
+      /(?:[\/／|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g
     );
 
   const seen = new Set();
