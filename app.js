@@ -12,8 +12,8 @@ const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
 
 /* NEW robust ID patterns */
-const STRICT_ID = /\b[STFGM]\d{7}[A-Z]\b/;                  // S1234567A etc.
-const LAX_ID = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/;               // broader fallback
+const STRICT_ID = /\b[STFGM]\d{7}[A-Z]\b/; // S1234567A etc.
+const LAX_ID = /\b[A-Za-z]\d{6,8}[A-Za-z]\b/; // broader fallback
 const ID_REGEX = new RegExp(`${STRICT_ID.source}|${LAX_ID.source}`, "g");
 const WHOLE_ID_REGEX = new RegExp(`^(?:${STRICT_ID.source}|${LAX_ID.source})$`);
 
@@ -62,17 +62,17 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
-// Cosmetic space after 故 before Latin
-s = s.replace(/故(?=[A-Za-z\u4E00-\u9FFF])/g, "故 ");
+  // Hard break before every new 故 or 已故, tolerate spaces after the marker, normalise to one space
+  s = s.replace(/\s+故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n故 ");
+  s = s.replace(/\s+已故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n已故 ");
 
-// Hard break before every new 故 or 已故
-s = s.replace(/\s+故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
-s = s.replace(/\s+已故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n已故");
+  // Split Chinese names separated by spaces
+  s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, (_, prev) => {
+    return prev === "故" ? "故 " : prev + "\n";
+  });
 
-// Split Chinese names separated by spaces
-s = s.replace(/([\u4E00-\u9FFF])\s+(?=[\u4E00-\u9FFF])/gu, "$1\n");
-
-
+  // Cosmetic space after 故 before Latin or Chinese
+  s = s.replace(/故(?=[A-Za-z\u4E00-\u9FFF])/g, "故 ");
 
   s = s.trim();
   return s;
@@ -85,9 +85,12 @@ function smartCapitalize(name) {
     return trimmed.toUpperCase();
   }
   // Prepass: inside parentheses, force short alphabetic tokens to uppercase
-  let s = trimmed.replace(/\(([a-zA-Z]{2,5})\)/g, (_, w) => `(${w.toUpperCase()})`);
+  let s = trimmed.replace(
+    /\(([a-zA-Z]{2,5})\)/g,
+    (_, w) => `(${w.toUpperCase()})`
+  );
   // Title case English words, but preserve short all caps tokens
-s = s.replace(/\b[a-zA-Z][a-zA-Z'\u2019]*\b/g, (word) => {
+  s = s.replace(/\b[a-zA-Z][a-zA-Z'\u2019]*\b/g, (word) => {
     if (/^[A-Z]{2,5}$/.test(word)) return word;
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
@@ -100,7 +103,9 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   // Split on common separators, or before Name markers
   let parts = raw
     .replace(/\r\n/g, "\n")
-.split(/(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g);
+    .split(
+      /(?:[\/|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g
+    );
 
   const seen = new Set();
   const names = [];
@@ -111,12 +116,12 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       if (!s) continue;
 
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
-s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
+      s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
       if (!s) continue;
 
       // Only add a space after 故 or 已故 when followed by Latin
       s = s
-        s = s.replace(/^(故|已故)(?=[A-Za-z\u4E00-\u9FFF])/u, "$1 ");
+        .replace(/^(故|已故)(?=[A-Za-z\u4E00-\u9FFF])/u, "$1 ")
         .replace(/\s{2,}/g, " ")
         .trim();
 
@@ -179,52 +184,18 @@ function setStatus(msg) {
   }
 }
 
-function postFormatDeceased(lines) {
-  const out = [];
-  const isDeceased = (s) => /^故/.test(s);
-  const latinAfterPrefix = (s) => /^故\s*[A-Za-z]/.test(s);
-
-  for (const s of lines) {
-    if (isDeceased(s)) {
-      const last = out[out.length - 1];
-
-      // Rule: keep the very first deceased as its own line
-      if (!last) {
-        out.push(s);
-        continue;
-      }
-
-      // Pair only if the previous output line is a deceased line,
-      // that previous line starts with Latin after 故,
-      // this line also starts with Latin after 故,
-      // and we have not already paired on that line.
-      if (
-        isDeceased(last) &&
-        latinAfterPrefix(last) &&
-        latinAfterPrefix(s) &&
-        ((last.match(/\b故\s*[A-Za-z]/g) || []).length < 2)
-      ) {
-        out[out.length - 1] = last + " " + s;
-      } else {
-        out.push(s);
-      }
-    } else {
-      out.push(s);
-    }
-  }
-  return out;
-}
-
-
 async function runSplit(autoCopy = true) {
   const raw = preprocessRaw(input.value);
-let names = parseNames(raw, { doDedupe: dedupe.checked, doTrim: trimSpaces.checked });
+  let names = parseNames(raw, {
+    doDedupe: dedupe.checked,
+    doTrim: trimSpaces.checked,
+  });
 
-// Disable pairing so each 故 or 已故 stands on its own line
-// names = postFormatDeceased(names);
+  // Disable pairing so each 故 or 已故 stands on its own line
+  // names = postFormatDeceased(names);
 
-const text = toMultiline(names);
-  
+  const text = toMultiline(names);
+
   output.value = text;
   updateCount(names.length);
   if (autoCopy && text.length) {
@@ -234,7 +205,6 @@ const text = toMultiline(names);
     setStatus("Done");
   }
 }
-
 
 splitBtn.addEventListener("click", () => runSplit(true));
 copyBtn.addEventListener("click", async () => {
