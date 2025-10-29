@@ -123,6 +123,13 @@ function manageNames(s) {
   return s;
 }
 
+/* Remove full-width Name markers like Name＃1 or Name＃12 */
+function removeFullWidthNameLabels(s) {
+  if (typeof s !== "string") return "";
+  // Replace "Name＃number" or "Name ＃number" (optionally followed by dash/colon)
+  return s.replace(/^\s*Name\s*[＃#]?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
@@ -142,7 +149,8 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       if (!s) continue;
 
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
-      s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
+      // Remove both normal and full-width Name number labels
+      s = removeFullWidthNameLabels(s);
       if (!s) continue;
 
       // Only add a space after 故 or 已故 when followed by Latin
