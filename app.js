@@ -63,7 +63,7 @@ function preprocessRaw(raw) {
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
 // Cosmetic space after 故 before Latin
-s = s.replace(/故(?=[A-Za-z])/g, "故 ");
+s = s.replace(/故(?=[A-Za-z\u4E00-\u9FFF])/g, "故 ");
 
 // Hard break before every new 故 or 已故
 s = s.replace(/\s+故(?=[A-Za-z\u4E00-\u9FFF])/g, "\n故");
@@ -116,7 +116,7 @@ s = s.replace(/^\s*Name\s*#?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
 
       // Only add a space after 故 or 已故 when followed by Latin
       s = s
-        .replace(/^(故|已故)(?=[A-Za-z])/u, "$1 ")
+        s = s.replace(/^(故|已故)(?=[A-Za-z\u4E00-\u9FFF])/u, "$1 ");
         .replace(/\s{2,}/g, " ")
         .trim();
 
