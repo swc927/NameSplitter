@@ -25,6 +25,23 @@ function normaliseSpaces(s) {
     .trim();
 }
 
+function stripInlineTrailingMarkers(s) {
+  // remove a marker at end of line or string
+  s = s.replace(/(?:^|\s)(?:#|No\.?)\s*\d+\s*(?=\n|$)/gi, "");
+  // remove a marker that appears right before a slash separator
+  s = s.replace(/\s*(?:#|No\.?)\s*\d+\s*(?=[\/／]|$)/gi, "");
+  return s;
+}
+
+// NEW remove standalone list markers like "#3" or "No. 3" on their own line
+function stripOrphanListMarkers(s) {
+  // Replace a whole line that is just "#n" or "No. n" with a single newline
+  s = s.replace(/(^|\n)\s*(?:#|No\.?)\s*\d+\s*(?=\n|$)/gi, "\n");
+  // Tidy any extra blank lines formed by the removal
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s;
+}
+
 // Split any chunk into [name pieces and ID pieces], preserving order
 function explodeInlineIds(s) {
   return s
@@ -62,31 +79,38 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
-  // Decode common HTML non breaking space variants before splitting
-  // Handles &nbsp; &Nbsp; &#160; &#xA0; and friends semicolon optional
+  // NEW remove orphaned lines that are only list markers like "#1"  [kept]
+  s = stripOrphanListMarkers(s);
+
+  // remove inline markers that sit before a slash or at end
+  s = s.replace(/\s*(?:#|No\.?)\s*\d+\s*(?=(?:\s*[\/／])|$)/gi, "");
+
+  // NEW also remove inline or trailing markers after names  [kept]
+  s = stripInlineTrailingMarkers(s);
+
+  // Decode common HTML whitespace entities
   s = s.replace(/&(nbsp|ensp|emsp|thinsp);?/gi, " ");
   s = s.replace(/&#(?:160|xA0);?/gi, " ");
 
-  // Remove zero widths then normalise more slash variants
+  // Remove zero width chars and normalise slashes
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
   s = s.replace(/[\uFF0F\u2215\u2044]/g, "/");
-
-  // Normalise full width slash to ASCII slash
   s = s.replace(/／/g, "/");
 
-  // Normalise variants like 故: or 故： to a standard form "故 "
+  // REMOVED duplicate stripOrphanListMarkers here  [removed duplicate]
+
+  // Normalise variants like 故: or 故： to "故 "
   s = s.replace(/(故|已故)[:：]\s*/g, "$1 ");
 
-  // Break before common list markers like 1) or 2.
-  // Supports full width right parenthesis too
+  // Break before "1)" style markers
   s = s.replace(/\s*\d+[.)）]\s+(?=[A-Za-z\u4E00-\u9FFF])/gu, "\n");
 
-  // Break on hash number or No. markers and strip them
+  // Break on inline "#n" or "No. n" before names
   s = s
     .replace(/\s*#\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/g, "\n")
     .replace(/\s*No\.?\s*\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/gi, "\n");
 
-  // Hard break before every new 故 or 已故, tolerate spaces after the marker, normalise to one space
+  // Hard break before each 故 or 已故
   s = s.replace(/\s+故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n故 ");
   s = s.replace(/\s+已故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n已故 ");
 
@@ -177,6 +201,9 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       let s = doTrim ? normaliseSpaces(chunk) : chunk;
       if (!s) continue;
 
+      // drop chunks that are just "#n" or "No. n"
+      if (/^(?:#|No\.?)\s*\d+$/i.test(s)) continue;
+
       // Clean HTML entities and numbered list markers
       s = cleanHtmlEntities(s);
       if (!s) continue;
@@ -192,8 +219,13 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
         .replace(/\s{2,}/g, " ")
         .trim();
 
+      // NEW clean any leftover inline or trailing markers like " #12"  [kept]
+      s = stripInlineTrailingMarkers(s);
+
       // Capitalise names and uppercase IDs
       s = manageNames(s);
+
+      // REMOVED duplicated 故 spacing and manageNames block here  [removed duplicate]
 
       // Normalise company terms  NEW USE
       s = normaliseCompanyTerms(s);
