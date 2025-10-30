@@ -81,6 +81,11 @@ function preprocessRaw(raw) {
   // Supports full-width right parenthesis too
   s = s.replace(/\s*\d+[.)）]\s+(?=[A-Za-z\u4E00-\u9FFF])/gu, "\n");
 
+  // Break on hash-number or No. markers and strip them
+  s = s
+    .replace(/\s*#\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/g, "\n")
+    .replace(/\s*No\.?\s*\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/gi, "\n");
+
   // Hard break before every new 故 or 已故, tolerate spaces after the marker, normalise to one space
   s = s.replace(/\s+故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n故 ");
   s = s.replace(/\s+已故(?=\s*[A-Za-z\u4E00-\u9FFF])/g, "\n已故 ");
@@ -146,13 +151,11 @@ function removeFullWidthNameLabels(s) {
 function cleanHtmlEntities(s) {
   if (typeof s !== "string") return "";
 
-  // 1. Convert common HTML non-breaking spaces (&nbsp;) to real spaces
   s = s.replace(/&nbsp;|&#160;|&ensp;|&emsp;/gi, " ");
 
-  // 2. Remove leading numbered markers like "#7", "#12", or "No.7"
-  s = s.replace(/^\s*(#|No\.?)\s*\d+\s*/i, "");
+  // Remove markers like "#7" or "No. 7" anywhere they appear before names
+  s = s.replace(/(^|\s)(?:#|No\.?)\s*\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/gi, " ");
 
-  // 3. Collapse double spaces
   return s.replace(/\s{2,}/g, " ").trim();
 }
 
@@ -163,7 +166,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   let parts = raw
     .replace(/\r\n/g, "\n")
     .split(
-      /(?:[\/／|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])/g
+      /(?:[\/／|,;；，、\n]+)|(?=Name#\d+)|(?=\bName\s*#?\s*\d+\s*[-:–—：])|(?=#\d+\b)|(?=\bNo\.?\s*\d+\b)/gi
     );
 
   const seen = new Set();
@@ -289,10 +292,21 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-input.addEventListener("paste", () => {
+input.addEventListener("paste", (e) => {
+  // Clear previous content first
+  input.value = "";
+  output.value = "";
+  updateCount(0);
+  setStatus("Cleared previous content");
+
+  // Let the paste complete, then process
   setTimeout(() => runSplit(true), 0);
 });
 
 window.addEventListener("DOMContentLoaded", () => {
   input.value = "";
 });
+
+statusEl.style.transition = "color 0.3s";
+statusEl.style.color = "red";
+setTimeout(() => (statusEl.style.color = ""), 600);
