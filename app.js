@@ -62,12 +62,12 @@ function preprocessRaw(raw) {
   s = s.replace(/^\s*(?:NRIC|FIN|UEN)[^:\n]*:\s*$/gim, "");
   s = s.replace(/\n{3,}/g, "\n\n").trim();
 
-  // Decode common HTML non-breaking space variants before splitting
-  // Handles &nbsp; &Nbsp; &#160; &#xA0; and friends (semicolon optional)
+  // Decode common HTML non breaking space variants before splitting
+  // Handles &nbsp; &Nbsp; &#160; &#xA0; and friends semicolon optional
   s = s.replace(/&(nbsp|ensp|emsp|thinsp);?/gi, " ");
   s = s.replace(/&#(?:160|xA0);?/gi, " ");
 
-  // Remove zero-widths then normalise more slash variants
+  // Remove zero widths then normalise more slash variants
   s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
   s = s.replace(/[\uFF0F\u2215\u2044]/g, "/");
 
@@ -78,10 +78,10 @@ function preprocessRaw(raw) {
   s = s.replace(/(故|已故)[:：]\s*/g, "$1 ");
 
   // Break before common list markers like 1) or 2.
-  // Supports full-width right parenthesis too
+  // Supports full width right parenthesis too
   s = s.replace(/\s*\d+[.)）]\s+(?=[A-Za-z\u4E00-\u9FFF])/gu, "\n");
 
-  // Break on hash-number or No. markers and strip them
+  // Break on hash number or No. markers and strip them
   s = s
     .replace(/\s*#\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/g, "\n")
     .replace(/\s*No\.?\s*\d+\s+(?=[A-Za-z\u4E00-\u9FFF])/gi, "\n");
@@ -125,13 +125,13 @@ function smartCapitalize(name) {
 function manageNames(s) {
   if (typeof s !== "string") return "";
 
-  // 1. Add space after 故 if missing (before Latin or Chinese)
+  // 1. Add space after 故 if missing before Latin or Chinese
   s = s.replace(/^(故)(?=[A-Za-z\u4E00-\u9FFF])/u, "$1 ");
 
   // 2. Normalise multiple spaces
   s = s.replace(/\s{2,}/g, " ").trim();
 
-  // 3. Capitalise if not Chinese-only
+  // 3. Capitalise if not Chinese only
   const hasLatin = /[A-Za-z]/.test(s);
   if (hasLatin) {
     s = smartCapitalize(s);
@@ -140,10 +140,10 @@ function manageNames(s) {
   return s;
 }
 
-/* Remove full-width Name markers like Name＃1 or Name＃12 */
+/* Remove full width Name markers like Name＃1 or Name＃12 */
 function removeFullWidthNameLabels(s) {
   if (typeof s !== "string") return "";
-  // Replace "Name＃number" or "Name ＃number" (optionally followed by dash/colon)
+  // Replace "Name＃number" or "Name ＃number" optionally followed by dash or colon
   return s.replace(/^\s*Name\s*[＃#]?\s*\d+\s*[-:–—：]?\s*/i, "").trim();
 }
 
@@ -182,7 +182,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       if (!s) continue;
 
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
-      // Remove both normal and full-width Name number labels
+      // Remove both normal and full width Name number labels
       s = removeFullWidthNameLabels(s);
       if (!s) continue;
 
@@ -243,11 +243,25 @@ function updateCount(n) {
   countBadge.textContent = String(n);
 }
 
+/* NEW helper to clear fields consistently */
+function clearAll(statusMsg = "Cleared") {
+  input.value = "";
+  output.value = "";
+  updateCount(0);
+  setStatus(statusMsg);
+}
+
+/* CHANGED unify glow styling inside setStatus */
 function setStatus(msg) {
   statusEl.textContent = msg;
   if (msg) {
+    statusEl.style.transition = "color 0.3s";
     statusEl.style.textShadow = "0 0 12px rgba(124,58,237,0.6)";
-    setTimeout(() => (statusEl.style.textShadow = "none"), 900);
+    statusEl.style.color = "red";
+    setTimeout(() => {
+      statusEl.style.textShadow = "none";
+      statusEl.style.color = "";
+    }, 600);
   }
 }
 
@@ -279,10 +293,7 @@ copyBtn.addEventListener("click", async () => {
   setStatus(ok ? "Copied to clipboard" : "Could not copy automatically");
 });
 clearBtn.addEventListener("click", () => {
-  input.value = "";
-  output.value = "";
-  updateCount(0);
-  setStatus("Cleared");
+  clearAll("Cleared");
 });
 
 input.addEventListener("keydown", (e) => {
@@ -292,21 +303,26 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
+/* CHANGED paste handling: clear first, insert plain text, then process */
 input.addEventListener("paste", (e) => {
-  // Clear previous content first
-  input.value = "";
-  output.value = "";
-  updateCount(0);
-  setStatus("Cleared previous content");
+  e.preventDefault(); // ensure we control the value
+  clearAll("Cleared previous content");
+  const data = e.clipboardData || window.clipboardData;
+  const text = data ? data.getData("text") : "";
+  input.value = text || "";
+  // Process immediately. No need to wait for DOM to insert since we set value ourselves
+  runSplit(true);
+});
 
-  // Let the paste complete, then process
-  setTimeout(() => runSplit(true), 0);
+/* NEW fallback for browsers that send beforeinput with insertFromPaste */
+input.addEventListener("beforeinput", (e) => {
+  if (e.inputType === "insertFromPaste" && !e.clipboardData) {
+    // Some engines fire beforeinput without clipboardData. Clear then let paste proceed.
+    clearAll("Cleared previous content");
+    setTimeout(() => runSplit(true), 0);
+  }
 });
 
 window.addEventListener("DOMContentLoaded", () => {
   input.value = "";
 });
-
-statusEl.style.transition = "color 0.3s";
-statusEl.style.color = "red";
-setTimeout(() => (statusEl.style.color = ""), 600);
