@@ -303,7 +303,6 @@ async function runSplit(autoCopy = true) {
     doDedupe: dedupe.checked,
     doTrim: trimSpaces.checked,
   });
-  names = forceTitleCase(names);
 
   // Disable pairing so each 故 or 已故 stands on its own line
   // names = postFormatDeceased(names);
