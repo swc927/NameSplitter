@@ -130,19 +130,35 @@ function preprocessRaw(raw) {
 /* Capitalise names, uppercase IDs */
 function smartCapitalize(name) {
   const trimmed = name.trim();
+
   if (WHOLE_ID_REGEX.test(trimmed)) {
     return trimmed.toUpperCase();
   }
-  // Prepass: inside parentheses, force short alphabetic tokens to uppercase
+
   let s = trimmed.replace(
-    /\(([a-zA-Z]{2,5})\)/g,
+    /\(([a-zA-Z]{2,10})\)/g,
     (_, w) => `(${w.toUpperCase()})`
   );
-  // Title case English words, but preserve short all caps tokens
+
   s = s.replace(/\b[a-zA-Z][a-zA-Z'\u2019]*\b/g, (word) => {
-    if (/^[A-Z]{2,5}$/.test(word)) return word;
+    const upper = word.toUpperCase();
+
+    const preserve = new Set([
+      "NRIC",
+      "FIN",
+      "UEN",
+      "LLP",
+      "LLC",
+      "PLC",
+      "PTE",
+      "LTD"
+    ]);
+
+    if (preserve.has(upper)) return upper;
+
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   });
+
   return s;
 }
 
