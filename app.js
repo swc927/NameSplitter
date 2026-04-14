@@ -10,6 +10,7 @@ const countBadge = $("#countBadge");
 const statusEl = $("#status");
 const dedupe = $("#dedupe");
 const trimSpaces = $("#trimSpaces");
+const capitalise = $("#capitalise");
 
 /* NEW robust ID patterns */
 const STRICT_ID = /\b[STFGM]\d{7}[A-Z]\b/; // S1234567A etc.
@@ -157,9 +158,9 @@ function manageNames(s) {
 
   // 3. Capitalise if not Chinese only
   const hasLatin = /[A-Za-z]/.test(s);
-  if (hasLatin) {
-    s = smartCapitalize(s);
-  }
+if (hasLatin && capitalise.checked) {
+  s = smartCapitalize(s);
+}
 
   return s;
 }
