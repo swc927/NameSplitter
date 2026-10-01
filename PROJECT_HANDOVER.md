@@ -45,3 +45,16 @@ Before each push, inspect the exact staged diff, run relevant checks and scan fo
 secrets. Do not publish the source screenshot or input records.
 After deployment, verify live runtime assets match this release and recheck
 name cleaning against the live script.
+
+## Verified production release
+- Source release commit: `bd37c56aeb623445ddd66f35cafdda0ef2e63d62`, pushed
+  to `main` and verified against GitHub's remote reference.
+- Netlify production deploy: `6abdb5c626ed97db0e397f26`, state `ready`.
+- Published 1 October 2026 at 09:22 Singapore time.
+- Live URL: https://name-splitter.netlify.app.
+- All three live runtime files were retrieved and matched the local release
+  byte for byte. 16 tests, JavaScript syntax, staged diff and secret checks passed.
+- CLI link by Git remote found no configured connection. Linked explicitly to
+  the existing site after all three prior live files matched repository `main`.
+  Future GitHub pushes should not be assumed to auto-deploy; repeat an explicit
+  CLI deployment from `dist` containing only the three runtime files.
