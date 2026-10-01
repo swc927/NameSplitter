@@ -30,3 +30,19 @@ Then in GitHub repo settings enable Pages to deploy from the `main` branch root.
 
 ## License
 MIT
+
+## Input cleaning
+Leading numbering, bullets, hashes, brackets and other symbols before the first
+Unicode letter are removed from each name. For example, `7） 林俊宏` becomes
+`林俊宏`, and `8) Ingrid Jonker-Kikkert` becomes `Ingrid Jonker-Kikkert`.
+Punctuation inside names is retained. Output is one unnumbered name per line.
+Cleaning happens before duplicate detection and does not require Trim spaces.
+
+## Tests
+With Node.js installed, run:
+```bash
+node --test tests/name-cleaning.test.cjs
+node --check app.js
+```
+No dependencies or build step are required. Tests exercise the real application
+script with lightweight browser element stubs, including output and count updates.

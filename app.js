@@ -200,6 +200,12 @@ function cleanHtmlEntities(s) {
   return s.replace(/\s{2,}/g, " ").trim();
 }
 
+function stripLeadingJunk(s) {
+  // Start at the first Unicode letter. Keep everything inside the name,
+  // including apostrophes, hyphens, accents, initials and company punctuation.
+  return s.replace(/^[^\p{L}]+/u, "");
+}
+
 function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
   if (typeof raw !== "string") return [];
 
@@ -228,6 +234,7 @@ function parseNames(raw, { doDedupe = true, doTrim = true } = {}) {
       // Remove leading Name number labels like Name#12 or Name 12 optionally with dash or colon
       // Remove both normal and full width Name number labels
       s = removeFullWidthNameLabels(s);
+      s = stripLeadingJunk(s);
       if (!s) continue;
 
       // Only add a space after 故 or 已故 when followed by Latin
